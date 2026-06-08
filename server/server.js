@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import evalRouter    from "./routes/eval.js";
 import resumeRouter  from "./routes/resume.js";
 import scanRouter    from "./routes/scan.js";
+import searchRouter  from "./routes/search.js";
 import trackerRouter from "./routes/tracker.js";
 import storiesRouter from "./routes/stories.js";
 
@@ -35,6 +36,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true, version: "0.1.0" }));
 app.use("/api/eval",    evalRouter);
 app.use("/api/resume",  resumeRouter);
 app.use("/api/scan",    scanRouter);     // v0.3
+app.use("/api/search",  searchRouter);   // v0.4.1 — premium APIs
 app.use("/api/tracker", trackerRouter); // v0.4
 app.use("/api/stories", storiesRouter); // v0.4
 

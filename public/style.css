@@ -192,6 +192,39 @@ button.ghost:hover { background: var(--paper); }
   .provider-lever      { color: #d8a87c; }
 }
 
+/* --- premium provider checkboxes --- */
+.provider-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.8rem;
+}
+.provider-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+.provider-checkbox:hover { background: var(--paper-2); }
+.provider-checkbox input { margin: 0; }
+.provider-checkbox input:disabled + span { opacity: 0.55; }
+
+.provider-theirstack { color: #4c5fb0; }
+.provider-bluedoor   { color: #2a7a8a; }
+.provider-google_jobs { color: #b65d10; }
+.provider-linkedin   { color: #0a66c2; }
+@media (prefers-color-scheme: dark) {
+  .provider-theirstack { color: #a8b6e8; }
+  .provider-bluedoor   { color: #88d0e0; }
+  .provider-google_jobs { color: #ffb070; }
+  .provider-linkedin   { color: #6fa8e8; }
+}
+
 /* --- scan results --- */
 .company-results {
   border: 1.5px solid var(--rule);
