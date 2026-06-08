@@ -4,18 +4,17 @@
 // every request here (default port 8001). Auth happens at the nginx
 // layer via HTTP Basic Auth — this app trusts whoever nginx lets through.
 //
-// v0.1 ships /api/eval only; /api/pdf, /api/scan, /api/tracker are
-// stubbed and return 501 with a "coming soon" message.
+// v1.0 collapses the v0.x scatter of pages into one unified flow at /
+// driven by POST /api/find (query + resume → ranked top N). Tracker
+// stays as a side-pane for persistent state. PDF tailoring still TODO.
 
 import "dotenv/config";
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import evalRouter    from "./routes/eval.js";
-import resumeRouter  from "./routes/resume.js";
-import scanRouter    from "./routes/scan.js";
-import searchRouter  from "./routes/search.js";
+import findRouter    from "./routes/find.js";       // v1.0 — unified pipeline
+import resumeRouter  from "./routes/resume.js";     // file-upload helper (used by /api/find too)
 import trackerRouter from "./routes/tracker.js";
 import storiesRouter from "./routes/stories.js";
 
@@ -25,34 +24,22 @@ const REPO_ROOT = join(__dirname, "..");
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-// Static frontend
 app.use(express.static(join(REPO_ROOT, "public")));
 
-// Cheap liveness probe — nginx + deploy scripts hit this to verify the
-// service came up cleanly.
-app.get("/healthz", (_req, res) => res.json({ ok: true, version: "0.1.0" }));
+app.get("/healthz", (_req, res) => res.json({ ok: true, version: "1.0.0" }));
 
-// Active features
-app.use("/api/eval",    evalRouter);
+app.use("/api/find",    findRouter);
 app.use("/api/resume",  resumeRouter);
-app.use("/api/scan",    scanRouter);     // v0.3
-app.use("/api/search",  searchRouter);   // v0.4.1 — premium APIs
-app.use("/api/tracker", trackerRouter); // v0.4
-app.use("/api/stories", storiesRouter); // v0.4
+app.use("/api/tracker", trackerRouter);
+app.use("/api/stories", storiesRouter);
 
-// v0.2+ stubs. Returning 501 (Not Implemented) is more honest than a 404
-// because the route IS defined; the feature just isn't there yet.
-const comingSoon = (feature) => (_req, res) =>
-  res.status(501).json({
-    ok: false,
-    feature,
-    error: `${feature} not implemented in v0.1 — shipping in a follow-up`,
-  });
+// PDF tailoring still queued.
+app.post("/api/pdf", (_req, res) => res.status(501).json({
+  ok: false,
+  feature: "PDF tailored CV",
+  error:   "PDF tailoring still TODO — coming after the v1.0 sweep settles",
+}));
 
-app.post("/api/pdf", comingSoon("PDF tailored CV"));
-
-// Catch-all that returns JSON for /api/* and HTML 404 for everything else,
-// so the SPA-ish frontend stays predictable.
 app.use((req, res) => {
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ ok: false, error: "not found" });
@@ -64,5 +51,5 @@ app.use((req, res) => {
 
 const PORT = parseInt(process.env.PORT || "8001", 10);
 app.listen(PORT, "127.0.0.1", () => {
-  console.log(`career-ops-web listening on 127.0.0.1:${PORT}`);
+  console.log(`career-ops-web v1.0 listening on 127.0.0.1:${PORT}`);
 });

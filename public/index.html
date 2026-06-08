@@ -4,57 +4,73 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>career-ops · personal</title>
+  <title>career-ops</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute">
+    <defs>
+      <filter id="sketchy-soft">
+        <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="3"/>
+        <feDisplacementMap in="SourceGraphic" scale="1.4"/>
+      </filter>
+    </defs>
+  </svg>
+
   <header>
-    <h1>career-ops</h1>
+    <a href="/" class="brand">career-ops</a>
     <nav>
-      <a href="/" class="active">eval</a>
-      <a href="/pdf.html">pdf <span class="coming-soon">soon</span></a>
-      <a href="/scan.html">scan</a>
-      <a href="/search.html">search</a>
+      <a href="/" class="active">find</a>
       <a href="/tracker.html">tracker</a>
     </nav>
   </header>
 
   <main>
-    <h2>evaluate one job</h2>
-    <p class="muted">
-      Paste a JD (or a URL), paste your CV, get a career-ops style A-F
-      report grounded in your background. Uses
-      <code>career-ops/modes/oferta.md</code> verbatim as the system
-      prompt.
-    </p>
+    <section class="hero">
+      <h1>find work that doesn't <span class="strike">drain you</span> bore you.</h1>
+      <p class="lead">
+        Describe what you want. Drop your resume. We fan out across 45+
+        curated companies, LinkedIn, Google Jobs, TheirStack, bluedoor —
+        score every posting against you — and rank the top
+        <strong>20</strong>.
+      </p>
+    </section>
 
-    <div class="card">
-      <label for="jd_url">job url <span class="muted">(optional)</span></label>
-      <input id="jd_url" type="url" placeholder="https://...">
-
-      <label for="jd">or paste the JD here</label>
-      <textarea id="jd" placeholder="paste the role description..."></textarea>
-
-      <label for="cv">your CV
-        <span class="muted">
-          (upload PDF/HTML/MD/TXT below, or paste markdown directly)
-        </span>
+    <form id="find" class="paper-card">
+      <label>
+        what role are you after?
+        <input id="query" type="text" required
+               placeholder="e.g. machine learning intern, summer 2026, US-only" />
       </label>
-      <input id="cv_file" type="file" accept=".pdf,.html,.htm,.md,.markdown,.txt" />
-      <p id="cv_file_status" class="muted" style="margin: 0.3rem 0 0.5rem;"></p>
-      <textarea id="cv" placeholder="paste markdown here, or upload above to auto-fill..."></textarea>
 
-      <label for="profile">candidate profile / preferences <span class="muted">(optional)</span></label>
-      <textarea id="profile" placeholder="what you want — level, location, timing, deal-breakers"></textarea>
+      <label>
+        location <span class="muted">(optional, helps filter)</span>
+        <input id="location" type="text" placeholder="United States · Boston, MA · Remote" />
+      </label>
 
-      <button id="run" class="primary">evaluate →</button>
-    </div>
+      <fieldset class="resume-pick">
+        <legend>your resume</legend>
+        <input id="resume_file" type="file"
+               accept=".pdf,.html,.htm,.md,.markdown,.txt" />
+        <details>
+          <summary class="muted">…or paste it as markdown</summary>
+          <textarea id="resume_text"
+                    placeholder="paste resume markdown if you don't have a file handy…"></textarea>
+        </details>
+        <p id="resume_status" class="muted small"></p>
+      </fieldset>
 
+      <button id="run" type="submit" class="primary">
+        <span class="caveat">find me jobs</span> →
+      </button>
+    </form>
+
+    <div id="phase" class="phase" style="display:none"></div>
     <div id="error" class="error" style="display:none"></div>
-    <div id="report"></div>
+    <div id="results"></div>
   </main>
 
   <footer class="credits">
