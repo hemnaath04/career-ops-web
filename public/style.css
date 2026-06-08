@@ -1,0 +1,141 @@
+/* career-ops-web — minimal, paper-and-ink aesthetic that matches
+   job-searcher's hand-drawn vibe without depending on Tailwind. */
+
+:root {
+  --ink:        #1a1a1a;
+  --paper:      #fcfaf2;
+  --paper-2:    #efeada;
+  --accent:     #7a4b00;
+  --aurora:     #bce6c8;
+  --highlight:  #ffe9a8;
+  --marker:     #c1442e;
+  --muted:      #6b6657;
+  --rule:       #d8d2b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:       #f4eedb;
+    --paper:     #11141a;
+    --paper-2:   #1d212a;
+    --muted:     #a39d8c;
+    --rule:      #2c313c;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+body {
+  font-family: "Iowan Old Style", "Source Serif Pro", Cambria, Georgia, serif;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+header {
+  border-bottom: 2px solid var(--ink);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+header h1 {
+  font-family: "Caveat", "Patrick Hand", "Brush Script MT", cursive;
+  font-size: 2.4rem;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+header nav a {
+  color: var(--ink);
+  text-decoration: none;
+  margin-left: 1.5rem;
+  font-size: 1rem;
+  border-bottom: 1.5px solid transparent;
+}
+header nav a:hover, header nav a.active {
+  border-bottom-color: var(--marker);
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+}
+
+h2 {
+  font-family: "Caveat", "Patrick Hand", cursive;
+  font-size: 2rem;
+  margin: 0 0 0.8rem;
+}
+
+.card {
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+label { display: block; margin: 0.8rem 0 0.3rem; font-weight: 600; font-size: 0.95rem; }
+input[type="text"], input[type="url"], textarea {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+textarea { min-height: 8rem; resize: vertical; }
+
+button.primary {
+  background: var(--aurora);
+  color: #16172a;
+  border: 2px solid var(--ink);
+  padding: 0.6rem 1.4rem;
+  font-family: "Caveat", cursive;
+  font-size: 1.3rem;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  border-radius: 3px;
+  margin-top: 1rem;
+}
+button.primary:hover { transform: translate(-1px, -1px); }
+button.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+button.primary:disabled { opacity: 0.55; cursor: wait; transform: none; }
+
+.muted { color: var(--muted); font-size: 0.85rem; }
+.mono  { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-size: 0.85rem; }
+
+#report {
+  margin-top: 1.5rem;
+  white-space: pre-wrap;
+  font-family: "Iowan Old Style", Georgia, serif;
+  line-height: 1.55;
+}
+#report h1, #report h2, #report h3 { font-family: inherit; font-weight: 700; }
+#report code { background: var(--paper-2); padding: 0.1em 0.35em; border-radius: 3px; }
+
+.error {
+  background: var(--marker);
+  color: #fff8e1;
+  padding: 0.8rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  margin-top: 1rem;
+}
+
+.coming-soon {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--highlight);
+  color: #16172a;
+  padding: 0.15rem 0.5rem;
+  border: 1.5px solid var(--ink);
+  vertical-align: middle;
+}

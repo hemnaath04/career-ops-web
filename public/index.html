@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>career-ops · personal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>career-ops</h1>
+    <nav>
+      <a href="/" class="active">eval</a>
+      <a href="/pdf.html">pdf <span class="coming-soon">soon</span></a>
+      <a href="/scan.html">scan <span class="coming-soon">soon</span></a>
+      <a href="/tracker.html">tracker <span class="coming-soon">soon</span></a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>evaluate one job</h2>
+    <p class="muted">
+      Paste a JD (or a URL), paste your CV, get a career-ops style A-F
+      report grounded in your background. Uses
+      <code>career-ops/modes/oferta.md</code> verbatim as the system
+      prompt.
+    </p>
+
+    <div class="card">
+      <label for="jd_url">job url <span class="muted">(optional)</span></label>
+      <input id="jd_url" type="url" placeholder="https://...">
+
+      <label for="jd">or paste the JD here</label>
+      <textarea id="jd" placeholder="paste the role description..."></textarea>
+
+      <label for="cv">your CV (markdown)</label>
+      <textarea id="cv" placeholder="paste your resume in markdown..."></textarea>
+
+      <label for="profile">candidate profile / preferences <span class="muted">(optional)</span></label>
+      <textarea id="profile" placeholder="what you want — level, location, timing, deal-breakers"></textarea>
+
+      <button id="run" class="primary">evaluate →</button>
+    </div>
+
+    <div id="error" class="error" style="display:none"></div>
+    <div id="report"></div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

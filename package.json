@@ -1,0 +1,18 @@
+{
+  "name": "career-ops-web",
+  "version": "0.1.0",
+  "description": "Web GUI on top of santifer/career-ops",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/server.js",
+    "start": "NODE_ENV=production node server/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0",
+    "express": "^5.0.0",
+    "openai": "^4.65.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

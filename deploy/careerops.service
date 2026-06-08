@@ -1,0 +1,46 @@
+# systemd unit for career-ops-web.
+#
+# Install path: /etc/systemd/system/careerops.service
+# Enable + start:
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now careerops
+# Logs:
+#     sudo journalctl -u careerops -f
+#
+# Assumes:
+#   - app cloned at /opt/career-ops-web
+#   - npm install run there
+#   - .env present at /opt/career-ops-web/.env (chmod 600)
+#   - career-ops repo cloned to /opt/career-ops
+#   - user 'careerops' exists
+
+[Unit]
+Description=career-ops-web (Express + minimal frontend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=careerops
+Group=careerops
+WorkingDirectory=/opt/career-ops-web
+EnvironmentFile=/opt/career-ops-web/.env
+
+# Node 20+; assumes nodesource setup script ran in deploy/setup.sh.
+ExecStart=/usr/bin/node /opt/career-ops-web/server/server.js
+
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=false
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=careerops
+
+[Install]
+WantedBy=multi-user.target
