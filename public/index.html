@@ -37,8 +37,14 @@
       <label for="jd">or paste the JD here</label>
       <textarea id="jd" placeholder="paste the role description..."></textarea>
 
-      <label for="cv">your CV (markdown)</label>
-      <textarea id="cv" placeholder="paste your resume in markdown..."></textarea>
+      <label for="cv">your CV
+        <span class="muted">
+          (upload PDF/HTML/MD/TXT below, or paste markdown directly)
+        </span>
+      </label>
+      <input id="cv_file" type="file" accept=".pdf,.html,.htm,.md,.markdown,.txt" />
+      <p id="cv_file_status" class="muted" style="margin: 0.3rem 0 0.5rem;"></p>
+      <textarea id="cv" placeholder="paste markdown here, or upload above to auto-fill..."></textarea>
 
       <label for="profile">candidate profile / preferences <span class="muted">(optional)</span></label>
       <textarea id="profile" placeholder="what you want — level, location, timing, deal-breakers"></textarea>

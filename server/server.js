@@ -12,7 +12,8 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import evalRouter from "./routes/eval.js";
+import evalRouter   from "./routes/eval.js";
+import resumeRouter from "./routes/resume.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -28,7 +29,8 @@ app.use(express.static(join(REPO_ROOT, "public")));
 app.get("/healthz", (_req, res) => res.json({ ok: true, version: "0.1.0" }));
 
 // v0.1 features
-app.use("/api/eval", evalRouter);
+app.use("/api/eval",   evalRouter);
+app.use("/api/resume", resumeRouter);
 
 // v0.2+ stubs. Returning 501 (Not Implemented) is more honest than a 404
 // because the route IS defined; the feature just isn't there yet.

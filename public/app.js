@@ -5,6 +5,35 @@
 
 const $ = (id) => document.getElementById(id);
 
+// File upload → parse to text → drop into the CV textarea.
+async function handleResumeUpload(e) {
+  const file = e.target.files[0];
+  const status = $("cv_file_status");
+  if (!file) return;
+
+  status.textContent = `parsing ${file.name}…`;
+  status.style.color = "";
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const r = await fetch("/api/resume/parse", { method: "POST", body: fd });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      status.textContent = data?.error || `failed (${r.status})`;
+      status.style.color = "var(--marker)";
+      return;
+    }
+    $("cv").value = data.text;
+    status.textContent = `parsed ${file.name} → ${data.chars.toLocaleString()} characters`;
+    status.style.color = "";
+  } catch (err) {
+    status.textContent = `network error: ${err?.message || err}`;
+    status.style.color = "var(--marker)";
+  }
+}
+
 async function runEval() {
   const btn = $("run");
   const errorEl = $("error");
@@ -64,3 +93,4 @@ async function runEval() {
 }
 
 $("run").addEventListener("click", runEval);
+$("cv_file").addEventListener("change", handleResumeUpload);
