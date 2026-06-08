@@ -1,6 +1,10 @@
 # career-ops-web
 
-A minimal web GUI on top of [santifer/career-ops](https://github.com/santifer/career-ops).
+A minimal web GUI on top of [santifer/career-ops](https://github.com/santifer/career-ops)
+by Santiago Fernández de Valderrama ([santifer.io](https://santifer.io)).
+All the heavy lifting — the A-F evaluation rubric, the curated company
+list, the mode prompts — lives in his repo. This is just the browser
+shell. See [ATTRIBUTION.md](./ATTRIBUTION.md).
 
 The original career-ops is a Node CLI + a folder of agent prompts (`modes/*.md`)
 designed to run inside Claude Code / Gemini CLI. This wraps those same prompts
@@ -15,6 +19,14 @@ browser, hosted on your own droplet, gated by HTTP Basic Auth.
 | PDF tailored CV | 🚧 v0.2 |
 | Portal scanner (45+ companies via ATS APIs) | 🚧 v0.3 |
 | Tracker + story bank | 🚧 v0.4 |
+
+## Credits
+
+- **[santifer/career-ops](https://github.com/santifer/career-ops)** —
+  Santiago Fernández de Valderrama. MIT-licensed. This project would
+  not exist without his evaluation framework, mode prompts, and
+  curated portals list.
+- See [ATTRIBUTION.md](./ATTRIBUTION.md) for the full attribution.
 
 ## Architecture
 

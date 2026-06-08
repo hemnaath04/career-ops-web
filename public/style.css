@@ -228,6 +228,21 @@ button.ghost:hover { background: var(--paper); }
 
 .error-inline { color: var(--marker); }
 
+footer.credits {
+  text-align: center;
+  padding: 1.5rem 1rem 2rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-top: 1px dashed var(--rule);
+  margin-top: 4rem;
+}
+footer.credits a {
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+}
+footer.credits a:hover { color: var(--ink); border-bottom-color: var(--marker); }
+
 .coming-soon {
   display: inline-block;
   margin-left: 0.5rem;
