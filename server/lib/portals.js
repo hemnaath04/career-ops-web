@@ -18,11 +18,26 @@ import yaml from "js-yaml";
 
 const REPO_DIR = process.env.CAREER_OPS_DIR || "../career-ops";
 
+// Order matters: the most specific URL shapes must come first because
+// the looser patterns happily match a prefix of the URL and grab the
+// wrong path segment as the slug.
+//
+//   boards-api.greenhouse.io/v1/boards/anthropic/jobs   <- slug is `anthropic`
+//   boards.greenhouse.io/anthropic                       <- slug is `anthropic`
+//
+// Without the explicit /v1/boards/ pattern the second-line regex matches
+// the first one and captures `v1` instead of the company slug.
 const PROVIDER_PATTERNS = [
-  { re: /(?:job-boards|boards|boards-api)\.(?:eu\.)?greenhouse\.io\/([^/?#]+)/i, provider: "greenhouse" },
+  // Greenhouse boards-api: full API URL with /v{N}/boards/<slug>/jobs
+  { re: /boards-api\.greenhouse\.io\/v\d+\/boards\/([^/?#]+)/i, provider: "greenhouse" },
+  // Greenhouse hosted boards: (boards|job-boards|job-boards.eu).greenhouse.io/<slug>
+  { re: /(?:job-boards|boards)(?:\.eu)?\.greenhouse\.io\/([^/?#]+)/i, provider: "greenhouse" },
+  // Ashby
   { re: /jobs\.ashbyhq\.com\/([^/?#]+)/i, provider: "ashby" },
-  { re: /(?:api\.)?lever\.co\/(?:v\d+\/postings\/)?([^/?#]+)/i, provider: "lever" },
-  { re: /jobs\.lever\.co\/([^/?#]+)/i,   provider: "lever" },
+  // Lever API
+  { re: /api\.lever\.co\/v\d+\/postings\/([^/?#]+)/i, provider: "lever" },
+  // Lever hosted board
+  { re: /jobs\.lever\.co\/([^/?#]+)/i, provider: "lever" },
 ];
 
 

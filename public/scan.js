@@ -97,24 +97,63 @@ async function runScan() {
 }
 
 function renderResults(data) {
-  const ok = data.results.filter((r) => !r.error);
-  const failed = data.results.filter((r) => r.error);
+  const okWithJobs   = data.results.filter((r) => !r.error && r.count > 0);
+  const okNoJobs     = data.results.filter((r) => !r.error && r.count === 0);
+  const failed       = data.results.filter((r) => r.error);
 
-  const html = [];
-  html.push(`<h2 style="margin-top:2rem">${data.total_jobs} job${data.total_jobs === 1 ? "" : "s"} across ${ok.length} compan${ok.length === 1 ? "y" : "ies"}</h2>`);
-  if (failed.length) {
-    html.push(`<p class="muted">${failed.length} compan${failed.length === 1 ? "y" : "ies"} failed: ${failed.map(f => `${escapeHtml(f.company)} <span class="mono">(${escapeHtml(f.error)})</span>`).join(", ")}</p>`);
+  // Group failures by error class (404 / network / etc.) so the user sees
+  // one chip per failure mode instead of a wall of text.
+  const failGroups = {};
+  for (const f of failed) {
+    const cls = classifyError(f.error);
+    (failGroups[cls] ||= []).push(f);
   }
 
-  // Sort results: companies with the most jobs first.
-  ok.sort((a, b) => b.count - a.count);
+  // Sort visible companies by job count desc — most-hiring first.
+  okWithJobs.sort((a, b) => b.count - a.count);
 
-  for (const r of ok) {
+  const html = [];
+
+  // Headline + tiny stat row.
+  html.push(`
+    <h2 style="margin-top:2rem">
+      ${data.total_jobs} job${data.total_jobs === 1 ? "" : "s"}
+      across ${okWithJobs.length} compan${okWithJobs.length === 1 ? "y" : "ies"}
+    </h2>
+    <p class="muted scan-stats">
+      ${okWithJobs.length} with jobs ·
+      ${okNoJobs.length} empty ·
+      ${failed.length} skipped
+    </p>
+  `);
+
+  // Failures section — collapsed by default. Grouped by error class.
+  if (failed.length) {
+    html.push(`
+      <details class="failures">
+        <summary><span class="muted">show ${failed.length} skipped compan${failed.length === 1 ? "y" : "ies"}</span></summary>
+        ${Object.entries(failGroups).map(([cls, list]) => `
+          <div class="fail-group">
+            <p class="mono fail-group-head">${escapeHtml(cls)} <span class="muted">(${list.length})</span></p>
+            <p class="fail-list">${list.map(f => escapeHtml(f.company)).join(", ")}</p>
+          </div>
+        `).join("")}
+        <p class="muted" style="font-size:0.78rem; margin-top:0.4rem">
+          These usually mean the company's ATS slug in career-ops's portals.yml
+          is stale (board renamed, company switched providers) — not a bug in
+          this scanner.
+        </p>
+      </details>
+    `);
+  }
+
+  // Successful companies with jobs.
+  for (const r of okWithJobs) {
     html.push(`
       <details class="company-results" open>
         <summary>
           <strong>${escapeHtml(r.company)}</strong>
-          <span class="mono">${r.provider}</span>
+          <span class="mono provider-${r.provider}">${r.provider}</span>
           <span class="muted">${r.count} role${r.count === 1 ? "" : "s"}</span>
         </summary>
         <ul class="job-list">
@@ -132,6 +171,16 @@ function renderResults(data) {
   }
 
   $("results").innerHTML = html.join("");
+}
+
+function classifyError(msg) {
+  const s = String(msg || "");
+  if (s.includes("404")) return "404 (board not found — slug likely stale)";
+  if (s.includes("403")) return "403 (board access denied)";
+  if (s.includes("429")) return "429 (rate limited)";
+  if (s.includes("aborted") || s.includes("timeout")) return "timeout";
+  if (s.includes("HTTP")) return s.replace(/^.*?(HTTP \d+).*$/, "$1");
+  return "other";
 }
 
 function escapeHtml(s) {
