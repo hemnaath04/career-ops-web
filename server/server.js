@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 
 import evalRouter   from "./routes/eval.js";
 import resumeRouter from "./routes/resume.js";
+import scanRouter   from "./routes/scan.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -28,9 +29,10 @@ app.use(express.static(join(REPO_ROOT, "public")));
 // service came up cleanly.
 app.get("/healthz", (_req, res) => res.json({ ok: true, version: "0.1.0" }));
 
-// v0.1 features
+// Active features
 app.use("/api/eval",   evalRouter);
 app.use("/api/resume", resumeRouter);
+app.use("/api/scan",   scanRouter);     // v0.3
 
 // v0.2+ stubs. Returning 501 (Not Implemented) is more honest than a 404
 // because the route IS defined; the feature just isn't there yet.
@@ -42,7 +44,6 @@ const comingSoon = (feature) => (_req, res) =>
   });
 
 app.post("/api/pdf",     comingSoon("PDF tailored CV"));
-app.post("/api/scan",    comingSoon("portal scanner"));
 app.get ("/api/tracker", comingSoon("tracker view"));
 app.get ("/api/stories", comingSoon("story bank"));
 

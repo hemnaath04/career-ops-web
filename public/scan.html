@@ -1,8 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
   <title>scan · career-ops</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -10,14 +15,35 @@
     <h1>career-ops</h1>
     <nav>
       <a href="/">eval</a>
-      <a href="/pdf.html">pdf</a>
+      <a href="/pdf.html">pdf <span class="coming-soon">soon</span></a>
       <a href="/scan.html" class="active">scan</a>
-      <a href="/tracker.html">tracker</a>
+      <a href="/tracker.html">tracker <span class="coming-soon">soon</span></a>
     </nav>
   </header>
+
   <main>
-    <h2>portal scanner <span class="coming-soon">v0.3</span></h2>
-    <p class="muted">Browse 45+ pre-curated companies, scan their ATS APIs for fresh postings. Coming in v0.3.</p>
+    <h2>portal scanner</h2>
+    <p class="muted">
+      Fan out across career-ops's curated companies and pull every open
+      posting. Hits each company's ATS (Greenhouse / Lever / Ashby)
+      directly — no scraping, no flaky search results.
+    </p>
+
+    <div class="card">
+      <div class="scan-toolbar">
+        <button id="select_all" class="ghost">select all</button>
+        <button id="select_none" class="ghost">select none</button>
+        <span id="company_count" class="muted"></span>
+        <button id="run" class="primary" style="margin-left:auto">scan selected →</button>
+      </div>
+      <div id="companies" class="companies-grid"></div>
+    </div>
+
+    <div id="error" class="error" style="display:none"></div>
+
+    <div id="results"></div>
   </main>
+
+  <script src="/scan.js"></script>
 </body>
 </html>

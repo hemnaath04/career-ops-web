@@ -127,6 +127,107 @@ button.primary:disabled { opacity: 0.55; cursor: wait; transform: none; }
   margin-top: 1rem;
 }
 
+/* --- portal scanner --- */
+.scan-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+button.ghost {
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  padding: 0.35rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+button.ghost:hover { background: var(--paper); }
+
+.companies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+.company-card {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.company-card:hover { background: var(--paper-2); }
+.company-card input { margin: 0; }
+.company-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+.company-meta strong { font-weight: 600; }
+.company-meta .mono { font-size: 0.7rem; opacity: 0.7; }
+.company-meta a {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* per-provider color codes for the mono tag */
+.provider-greenhouse { color: #2b6a3c; }
+.provider-ashby      { color: #6b4a8a; }
+.provider-lever      { color: #8a4a2b; }
+
+@media (prefers-color-scheme: dark) {
+  .provider-greenhouse { color: #87d09c; }
+  .provider-ashby      { color: #c4a8d8; }
+  .provider-lever      { color: #d8a87c; }
+}
+
+/* --- scan results --- */
+.company-results {
+  border: 1.5px solid var(--rule);
+  border-radius: 3px;
+  padding: 0.5rem 0.8rem;
+  margin: 0.5rem 0;
+  background: var(--paper);
+}
+.company-results summary {
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+.company-results summary .mono { font-size: 0.7rem; opacity: 0.65; }
+.company-results .job-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+}
+.company-results .job-list li {
+  padding: 0.3rem 0;
+  border-top: 1px dashed var(--rule);
+  font-size: 0.92rem;
+}
+.company-results .job-list a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--marker);
+}
+.company-results .job-list a:hover { border-bottom-color: var(--ink); }
+
+.error-inline { color: var(--marker); }
+
 .coming-soon {
   display: inline-block;
   margin-left: 0.5rem;
