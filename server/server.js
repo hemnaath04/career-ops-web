@@ -12,9 +12,11 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import evalRouter   from "./routes/eval.js";
-import resumeRouter from "./routes/resume.js";
-import scanRouter   from "./routes/scan.js";
+import evalRouter    from "./routes/eval.js";
+import resumeRouter  from "./routes/resume.js";
+import scanRouter    from "./routes/scan.js";
+import trackerRouter from "./routes/tracker.js";
+import storiesRouter from "./routes/stories.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -30,9 +32,11 @@ app.use(express.static(join(REPO_ROOT, "public")));
 app.get("/healthz", (_req, res) => res.json({ ok: true, version: "0.1.0" }));
 
 // Active features
-app.use("/api/eval",   evalRouter);
-app.use("/api/resume", resumeRouter);
-app.use("/api/scan",   scanRouter);     // v0.3
+app.use("/api/eval",    evalRouter);
+app.use("/api/resume",  resumeRouter);
+app.use("/api/scan",    scanRouter);     // v0.3
+app.use("/api/tracker", trackerRouter); // v0.4
+app.use("/api/stories", storiesRouter); // v0.4
 
 // v0.2+ stubs. Returning 501 (Not Implemented) is more honest than a 404
 // because the route IS defined; the feature just isn't there yet.
@@ -43,9 +47,7 @@ const comingSoon = (feature) => (_req, res) =>
     error: `${feature} not implemented in v0.1 — shipping in a follow-up`,
   });
 
-app.post("/api/pdf",     comingSoon("PDF tailored CV"));
-app.get ("/api/tracker", comingSoon("tracker view"));
-app.get ("/api/stories", comingSoon("story bank"));
+app.post("/api/pdf", comingSoon("PDF tailored CV"));
 
 // Catch-all that returns JSON for /api/* and HTML 404 for everything else,
 // so the SPA-ish frontend stays predictable.

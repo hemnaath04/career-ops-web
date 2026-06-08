@@ -228,6 +228,127 @@ button.ghost:hover { background: var(--paper); }
 
 .error-inline { color: var(--marker); }
 
+/* --- tabs --- */
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--ink);
+}
+.tab {
+  background: transparent;
+  border: 2px solid var(--ink);
+  border-bottom: none;
+  padding: 0.4rem 1rem;
+  font-family: "Caveat", cursive;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+  color: var(--ink);
+  position: relative;
+  top: 2px;
+}
+.tab.active {
+  background: var(--paper-2);
+  font-weight: 600;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* --- shared form rows --- */
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.4rem 0;
+  flex-wrap: wrap;
+}
+.form-row > * { flex: 1 1 200px; }
+
+/* --- kanban --- */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+.kanban-col {
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  padding: 0.6rem;
+  min-height: 200px;
+}
+.kanban-col > header {
+  font-family: "Caveat", cursive;
+  font-size: 1.3rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1.5px dashed var(--ink);
+}
+.kanban-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.kanban-card {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.kanban-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.kanban-card .mono { font-size: 0.78rem; color: var(--accent); text-decoration: none; }
+.kanban-card .mono:hover { text-decoration: underline; }
+.kanban-move {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.kanban-move .ghost {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.8rem;
+}
+.ghost-x {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+.ghost-x:hover { color: var(--marker); }
+
+/* --- stories --- */
+.stories-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1rem; }
+.story-card {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  padding: 0.7rem 0.9rem;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.story-card header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.story-theme {
+  background: var(--highlight);
+  color: #16172a;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+}
+
 footer.credits {
   text-align: center;
   padding: 1.5rem 1rem 2rem;

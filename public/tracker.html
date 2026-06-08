@@ -1,8 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
   <title>tracker · career-ops</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -10,19 +15,79 @@
     <h1>career-ops</h1>
     <nav>
       <a href="/">eval</a>
-      <a href="/pdf.html">pdf</a>
+      <a href="/pdf.html">pdf <span class="coming-soon">soon</span></a>
       <a href="/scan.html">scan</a>
       <a href="/tracker.html" class="active">tracker</a>
     </nav>
   </header>
+
   <main>
-    <h2>tracker + story bank <span class="coming-soon">v0.4</span></h2>
-    <p class="muted">Pipeline view of evaluated jobs, accumulating STAR story bank. Coming in v0.4.</p>
+    <div class="tabs">
+      <button class="tab active" data-tab="tracker">tracker</button>
+      <button class="tab"        data-tab="stories">stories</button>
+    </div>
+
+    <!-- ============ Tracker tab ============ -->
+    <section id="tab-tracker" class="tab-pane active">
+      <h2>application pipeline</h2>
+      <p class="muted">
+        Manually add a job you're working on. Drag through stages using
+        the arrow buttons on each card. Stored as JSON in <code>data/tracker.json</code>
+        on the droplet — wipes if you re-run setup.sh.
+      </p>
+
+      <details class="card">
+        <summary><strong>+ add job</strong></summary>
+        <div style="padding-top:0.6rem">
+          <div class="form-row">
+            <input id="t_title"    type="text" placeholder="title" />
+            <input id="t_company"  type="text" placeholder="company" />
+          </div>
+          <div class="form-row">
+            <input id="t_location" type="text" placeholder="location" />
+            <input id="t_url"      type="url"  placeholder="job URL" />
+          </div>
+          <textarea id="t_notes" placeholder="notes (optional)"></textarea>
+          <button id="t_save" class="primary" style="margin-top:0.6rem">save →</button>
+          <span id="t_status" class="muted" style="margin-left:0.8rem"></span>
+        </div>
+      </details>
+
+      <div id="kanban" class="kanban"></div>
+    </section>
+
+    <!-- ============ Stories tab ============ -->
+    <section id="tab-stories" class="tab-pane">
+      <h2>story bank</h2>
+      <p class="muted">
+        STAR+R behavioral stories. Tag each with one theme (leadership /
+        ambiguity / ownership / conflict / tradeoff / impact / etc.).
+        Stored as <code>data/stories.json</code>.
+      </p>
+
+      <details class="card">
+        <summary><strong>+ add story</strong></summary>
+        <div style="padding-top:0.6rem">
+          <div class="form-row">
+            <input id="s_theme" type="text" placeholder="theme (one word: leadership, ambiguity, ownership, ...)" style="max-width:340px" />
+            <input id="s_source" type="text" placeholder="source company/role (optional)" />
+          </div>
+          <textarea id="s_story" placeholder="situation · task · action · result · reflection" style="min-height:9rem"></textarea>
+          <button id="s_save" class="primary" style="margin-top:0.6rem">save →</button>
+          <span id="s_status" class="muted" style="margin-left:0.8rem"></span>
+        </div>
+      </details>
+
+      <div id="stories_list" class="stories-list"></div>
+    </section>
   </main>
+
   <footer class="credits">
     built on <a href="https://github.com/santifer/career-ops" target="_blank" rel="noopener">santifer/career-ops</a>
     by <a href="https://santifer.io" target="_blank" rel="noopener">Santiago Fernández de Valderrama</a>
     · MIT · see <a href="https://github.com/hemnaath04/career-ops-web/blob/main/ATTRIBUTION.md" target="_blank" rel="noopener">ATTRIBUTION</a>
   </footer>
+
+  <script src="/tracker.js"></script>
 </body>
 </html>
