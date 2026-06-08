@@ -49,7 +49,16 @@ else
 fi
 
 echo ">>> [3/7] system user + dirs"
-id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
+# npm needs a writable HOME for its cache + logs, so the careerops user
+# gets a real home dir (no shell, still no-login). System user, system uid.
+if ! id -u "$APP_USER" >/dev/null 2>&1; then
+    useradd --system --create-home --home-dir "/home/$APP_USER" \
+            --shell /usr/sbin/nologin "$APP_USER"
+elif [[ ! -d "/home/$APP_USER" ]]; then
+    # User exists from a previous run that used --no-create-home — give
+    # them a home now so npm install doesn't EACCES.
+    install -d -m 0755 -o "$APP_USER" -g "$APP_USER" "/home/$APP_USER"
+fi
 mkdir -p "$APP_DIR" "$ENGINE_DIR"
 
 # We assume you've already rsync'd or git-cloned career-ops-web into
@@ -70,6 +79,9 @@ fi
 chown -R "$APP_USER":"$APP_USER" "$ENGINE_DIR"
 
 echo ">>> [5/7] npm install"
+# If a previous run left a broken node_modules behind (e.g. from when
+# the user had no home dir and npm aborted mid-extract), clear it.
+rm -rf "$APP_DIR/node_modules" "$APP_DIR/package-lock.json"
 sudo -u "$APP_USER" --preserve-env=PATH bash -c "cd $APP_DIR && npm install --no-audit --no-fund --omit=dev"
 
 echo ">>> [6/7] systemd unit + nginx vhost"
