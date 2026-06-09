@@ -25,7 +25,20 @@ const REPO_ROOT = join(__dirname, "..");
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-app.use(express.static(join(REPO_ROOT, "public")));
+// HTML must never be cached — otherwise users keep loading old <script>
+// tags pointing at stale versions of app.js/style.css. JS/CSS get a
+// short cache TTL but their ?v= query strings act as the real bust.
+app.use(express.static(join(REPO_ROOT, "public"), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html") || filePath.endsWith("/")) {
+      res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+    } else if (filePath.match(/\.(js|css|svg|png|jpg|webp)$/)) {
+      res.set("Cache-Control", "public, max-age=300");  // 5 min
+    }
+  },
+}));
 
 app.get("/healthz", (_req, res) => res.json({ ok: true, version: "1.0.0" }));
 
