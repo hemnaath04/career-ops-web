@@ -8,6 +8,13 @@
 
 const $ = (id) => document.getElementById(id);
 
+// Cached resume text after the first /api/find submission. The /api/pdf
+// endpoint needs it again per "tailor CV" click, but we don't want to
+// re-upload the file each time. We let the server parse the file at submit
+// time and reflect the parsed text back via the response, or we just keep
+// the user's pasted markdown.
+let _lastResumeText = "";
+
 // === resume preview (optional — show byte count after pick) ============
 $("resume_file").addEventListener("change", (e) => {
   const f = e.target.files[0];
@@ -52,6 +59,7 @@ $("find").addEventListener("submit", async (e) => {
       showError(data?.error || `request failed (${r.status})`);
       return;
     }
+    _lastResumeText = data.resume_text || pasted || "";
     renderResults(data);
   } catch (err) {
     stopPhases();
@@ -134,6 +142,10 @@ function renderResults(data) {
   // wire "save to tracker" buttons
   root.querySelectorAll("[data-track]").forEach((b) =>
     b.addEventListener("click", () => saveToTracker(JSON.parse(b.dataset.track))));
+
+  // wire "tailor CV" buttons
+  root.querySelectorAll("[data-tailor]").forEach((b) =>
+    b.addEventListener("click", (e) => tailorCv(JSON.parse(b.dataset.tailor), b)));
 }
 
 
@@ -177,9 +189,58 @@ function renderJob(j, rank) {
       <footer class="job-actions">
         ${j.url ? `<a class="action" href="${escapeAttr(j.url)}" target="_blank" rel="noopener">open posting ↗</a>` : ""}
         <button class="action ghost" data-track='${escapeAttr(trackPayload)}'>+ tracker</button>
+        <button class="action ghost" data-tailor='${escapeAttr(JSON.stringify({
+          title:       j.title || "",
+          company:     j.company || "",
+          location:    j.location || "",
+          url:         j.url || "",
+          source:      j.source || "",
+          description: j.description || "",
+          hits:        j.hits || [],
+          gaps:        j.gaps || [],
+        }))}'>✦ tailor cv</button>
+        <span class="cv-result"></span>
       </footer>
     </article>
   `;
+}
+
+
+// === tailor CV (uses /api/pdf/generate) ===============================
+async function tailorCv(job, btn) {
+  if (!_lastResumeText) {
+    alert("can't tailor — resume text wasn't cached. re-submit the form once.");
+    return;
+  }
+  const slot = btn.parentElement.querySelector(".cv-result");
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = "tailoring…";
+  slot.textContent = "";
+
+  try {
+    const r = await fetch("/api/pdf/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resume_text: _lastResumeText, job }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      slot.innerHTML = `<span style="color:var(--marker)">failed: ${escapeHtml(data?.error || r.status)}</span>`;
+      return;
+    }
+    // Replace tailor button with two links: view + download
+    btn.style.display = "none";
+    slot.innerHTML = `
+      <a class="action" href="${escapeAttr(data.view_url)}" target="_blank" rel="noopener">view tailored cv ↗</a>
+      <a class="action" href="${escapeAttr(data.download_url)}" target="_blank" rel="noopener">⬇ pdf</a>
+    `;
+  } catch (e) {
+    slot.innerHTML = `<span style="color:var(--marker)">network: ${escapeHtml(String(e?.message || e))}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
 }
 
 

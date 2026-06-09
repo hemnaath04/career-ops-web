@@ -17,6 +17,7 @@ import findRouter    from "./routes/find.js";       // v1.0 — unified pipeline
 import resumeRouter  from "./routes/resume.js";     // file-upload helper (used by /api/find too)
 import trackerRouter from "./routes/tracker.js";
 import storiesRouter from "./routes/stories.js";
+import pdfRouter     from "./routes/pdf.js";        // v1.1 — tailored CV PDF
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -32,13 +33,7 @@ app.use("/api/find",    findRouter);
 app.use("/api/resume",  resumeRouter);
 app.use("/api/tracker", trackerRouter);
 app.use("/api/stories", storiesRouter);
-
-// PDF tailoring still queued.
-app.post("/api/pdf", (_req, res) => res.status(501).json({
-  ok: false,
-  feature: "PDF tailored CV",
-  error:   "PDF tailoring still TODO — coming after the v1.0 sweep settles",
-}));
+app.use("/api/pdf",     pdfRouter);
 
 app.use((req, res) => {
   if (req.path.startsWith("/api/")) {

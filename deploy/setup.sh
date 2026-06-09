@@ -84,6 +84,13 @@ echo ">>> [5/7] npm install"
 rm -rf "$APP_DIR/node_modules" "$APP_DIR/package-lock.json"
 sudo -u "$APP_USER" --preserve-env=PATH bash -c "cd $APP_DIR && npm install --no-audit --no-fund --omit=dev"
 
+# Playwright needs Chromium + system fonts/libs for the PDF tailoring
+# feature. ~250 MB on disk, one-time install. Skip if you don't want
+# PDF generation (the /api/pdf endpoint will simply fail at request time).
+echo ">>> [5b/7] Installing Playwright Chromium + system libs (this can take a couple minutes)..."
+sudo -u "$APP_USER" --preserve-env=PATH bash -c "cd $APP_DIR && npx --yes playwright install --with-deps chromium" \
+    || echo "!! playwright install failed — PDF tailoring won't work until you re-run this step"
+
 echo ">>> [6/7] systemd unit + nginx vhost"
 install -m 0644 "$APP_DIR/deploy/careerops.service" /etc/systemd/system/careerops.service
 systemctl daemon-reload

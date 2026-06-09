@@ -67,7 +67,9 @@ router.post("/", upload.single("resume"), async (req, res) => {
       resumeText,
       topN: parseInt(req.body.top_n || "20", 10),
     });
-    res.json({ ok: true, ...result });
+    // Reflect the parsed resume text back so the frontend can hand it to
+    // /api/pdf/generate per "tailor CV" click without re-uploading.
+    res.json({ ok: true, ...result, resume_text: resumeText });
   } catch (e) {
     console.error("pipeline failed:", e);
     res.status(500).json({ ok: false, error: `pipeline error: ${e?.message || e}` });
