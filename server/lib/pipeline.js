@@ -52,27 +52,42 @@ async function fetchAllSources(intent, location) {
     );
   }
 
-  // Search-API fan-out (one task per query × per provider)
+  // Search-API fan-out.
+  //   - bluedoor + free APIs: fire all queries (cheap or free)
+  //   - Apify + TheirStack: fire ONLY the first query (each request burns
+  //     paid quota; 4× queries × 2 actors = quota-killer on free tiers).
+  //     If you upgrade the paid tier, change `apifyQueries` below to `queries`.
   const tokSet = !!process.env.APIFY_TOKEN;
   const tsSet  = !!process.env.THEIRSTACK_API_KEY;
   console.warn(`[pipeline] Apify token set: ${tokSet}, TheirStack key set: ${tsSet}, search queries: ${queries.length}`);
 
-  for (const q of queries) {
-    if (tokSet) {
-      tasks.push(searchLinkedIn   ({ query: q, location })
-        .then((r) => { if (r.error) console.warn(`[pipeline] linkedin error: ${r.error}`);    return { source: "linkedin",    jobs: r.jobs || [], error: r.error }; })
-        .catch((e) => { console.warn(`[pipeline] linkedin threw: ${e.message}`);             return { source: "linkedin",    error: e.message,   jobs: [] }; }));
-      tasks.push(searchGoogleJobs ({ query: q, location })
-        .then((r) => { if (r.error) console.warn(`[pipeline] google_jobs error: ${r.error}`); return { source: "google_jobs", jobs: r.jobs || [], error: r.error }; })
-        .catch((e) => { console.warn(`[pipeline] google_jobs threw: ${e.message}`);          return { source: "google_jobs", error: e.message,  jobs: [] }; }));
-    } else {
+  const apifyQueries      = queries.slice(0, 1);
+  const theirstackQueries = queries.slice(0, 1);
+
+  // Apify (paid quota — one call per actor per submission)
+  for (const q of apifyQueries) {
+    if (!tokSet) {
       console.warn("[pipeline] skipping LinkedIn + Google Jobs — APIFY_TOKEN not in env");
+      break;
     }
-    if (tsSet) {
-      tasks.push(searchTheirStack({ query: q })
-        .then((r) => { if (r.error) console.warn(`[pipeline] theirstack error: ${r.error}`); return { source: "theirstack",  jobs: r.jobs || [], error: r.error }; })
-        .catch((e) => { console.warn(`[pipeline] theirstack threw: ${e.message}`);          return { source: "theirstack", error: e.message,   jobs: [] }; }));
-    }
+    tasks.push(searchLinkedIn   ({ query: q, location })
+      .then((r) => { if (r.error) console.warn(`[pipeline] linkedin error: ${r.error}`);    return { source: "linkedin",    jobs: r.jobs || [], error: r.error }; })
+      .catch((e) => { console.warn(`[pipeline] linkedin threw: ${e.message}`);             return { source: "linkedin",    error: e.message,   jobs: [] }; }));
+    tasks.push(searchGoogleJobs ({ query: q, location })
+      .then((r) => { if (r.error) console.warn(`[pipeline] google_jobs error: ${r.error}`); return { source: "google_jobs", jobs: r.jobs || [], error: r.error }; })
+      .catch((e) => { console.warn(`[pipeline] google_jobs threw: ${e.message}`);          return { source: "google_jobs", error: e.message,  jobs: [] }; }));
+  }
+
+  // TheirStack (paid credits — one call per submission on free tier)
+  for (const q of theirstackQueries) {
+    if (!tsSet) break;
+    tasks.push(searchTheirStack({ query: q })
+      .then((r) => { if (r.error) console.warn(`[pipeline] theirstack error: ${r.error}`); return { source: "theirstack",  jobs: r.jobs || [], error: r.error }; })
+      .catch((e) => { console.warn(`[pipeline] theirstack threw: ${e.message}`);          return { source: "theirstack", error: e.message,   jobs: [] }; }));
+  }
+
+  // bluedoor — anonymous tier is free, fire all queries
+  for (const q of queries) {
     tasks.push(searchBluedoor    ({ query: q, location })
       .then((r) => { if (r.error) console.warn(`[pipeline] bluedoor error: ${r.error}`); return { source: "bluedoor",     jobs: r.jobs || [], error: r.error }; })
       .catch((e) => { console.warn(`[pipeline] bluedoor threw: ${e.message}`);          return { source: "bluedoor",    error: e.message,    jobs: [] }; }));

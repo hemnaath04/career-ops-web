@@ -94,9 +94,14 @@ export async function searchGoogleJobs({ query, location }) {
   }
   console.warn(`[apify] Google Jobs query=${JSON.stringify(query)} location=${JSON.stringify(location || "")}`);
   const q = location ? `${query} in ${location}` : query;
+  // Different Google Jobs actors use different input shapes — some want
+  // `query` (singular string), others `queries` (plural list). Send both;
+  // unknown fields get ignored by every actor.
   const items = await runActorSync(GOOGLE_ACTOR, {
+    query:             q,
     queries:           [q],
     maxItems:          PER_QUERY_LIMIT,
+    maxPagesPerQuery:  1,
     csvFriendlyOutput: false,
   });
   return {
