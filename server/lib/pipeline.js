@@ -29,7 +29,11 @@ import { scoreMany } from "./scorer.js";
 // in .env to cap if your proxy starts throttling.
 const MAX_JOBS_TO_SCORE = parseInt(process.env.MAX_JOBS_TO_SCORE || "500", 10);
 const DEFAULT_TOP_N     = parseInt(process.env.TOP_N || "50", 10);
-const SCORE_CONCURRENCY = parseInt(process.env.SCORE_CONCURRENCY || "16", 10);
+// Concurrency 4 by default — most Claude proxies throttle anything
+// north of ~5-8 simultaneous requests. Bump to 8 or 12 only if your
+// proxy explicitly supports it; the SDK's 6-retry backoff covers
+// short bursts but can't paper over a low rate ceiling.
+const SCORE_CONCURRENCY = parseInt(process.env.SCORE_CONCURRENCY || "4", 10);
 
 
 // ---------- fan-out ----------

@@ -14,7 +14,11 @@ function client() {
     apiKey:  process.env.OPENAI_API_KEY,
     baseURL: process.env.OPENAI_BASE_URL || undefined,
     timeout: 120_000,
-    maxRetries: 2,
+    // Aggressive retries — when scoring 500+ jobs at once, hitting the
+    // proxy's per-minute rate limit is routine. The SDK does exponential
+    // backoff (~1s, 2s, 4s, 8s, 16s, 32s), respecting Retry-After if
+    // the proxy sets it. Total worst-case retry budget ~60s per call.
+    maxRetries: 6,
   });
   return _client;
 }

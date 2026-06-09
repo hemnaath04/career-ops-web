@@ -10,6 +10,7 @@ let _lastResumeText = "";
 // In-memory state of jobs we've seen, keyed by dedupe key.
 const _seen = new Map();   // key → { domNode, job }
 let _scoredCount = 0;
+let _failedCount = 0;
 let _totalToScore = 0;
 let _scoringStart = 0;
 
@@ -102,7 +103,14 @@ function handleEvent(e) {
       break;
     case "scored":
       _scoredCount++;
-      addOrUpdateJob(e.job);
+      // Hide infrastructure failures (rate-limited / proxy errors) —
+      // those aren't "score 0 jobs", they're failed calls. They'd
+      // otherwise clutter the grid with useless 0/10 cards.
+      if (!/scoring_error/i.test(e.job?.rationale || "")) {
+        addOrUpdateJob(e.job);
+      } else {
+        _failedCount = (_failedCount || 0) + 1;
+      }
       updateScoringProgress();
       break;
     case "resume":
@@ -140,7 +148,8 @@ function setPhase(stage, detail) {
 function updateScoringProgress() {
   const el = $("phase");
   const dt = Math.round((Date.now() - _scoringStart) / 1000);
-  el.textContent = `scoring against your resume… ${_scoredCount} / ${_totalToScore}  ·  ${dt}s elapsed`;
+  const failed = _failedCount ? ` (${_failedCount} rate-limited)` : "";
+  el.textContent = `scoring against your resume… ${_scoredCount} / ${_totalToScore}${failed}  ·  ${dt}s elapsed`;
 }
 
 
@@ -384,6 +393,7 @@ function resetState() {
   $("error").style.display = "none";
   _seen.clear();
   _scoredCount = 0;
+  _failedCount = 0;
   _totalToScore = 0;
 }
 function setRunning(on) {
