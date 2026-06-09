@@ -220,12 +220,18 @@ button.primary:disabled { opacity: 0.7; cursor: wait; transform: none; }
 .chip.tiny { font-size: 0.65rem; padding: 0.1rem 0.4rem; margin-left: 0.4rem; }
 
 .chip[data-source="linkedin"]    { background: #cce0f5; color: #16172a; }
+.chip[data-source="google"]      { background: #fde0c5; color: #16172a; }
 .chip[data-source="google_jobs"] { background: #fde0c5; color: #16172a; }
+.chip[data-source="indeed"]      { background: #c5d8f0; color: #16172a; }
+.chip[data-source="glassdoor"]   { background: #c5e6d8; color: #16172a; }
+.chip[data-source="zip_recruiter"] { background: #e6c5d8; color: #16172a; }
+.chip[data-source="ziprecruiter"]  { background: #e6c5d8; color: #16172a; }
 .chip[data-source="theirstack"]  { background: #d8d5f0; color: #16172a; }
 .chip[data-source="bluedoor"]    { background: #c9eaf0; color: #16172a; }
 .chip[data-source="greenhouse"]  { background: #c8e8c8; color: #16172a; }
 .chip[data-source="ashby"]       { background: #e6d5f0; color: #16172a; }
 .chip[data-source="lever"]       { background: #f0d5b8; color: #16172a; }
+.chip[data-source="jobspy"]      { background: #d8d8d8; color: #16172a; }
 
 /* === job grid === */
 .job-grid {

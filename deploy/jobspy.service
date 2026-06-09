@@ -1,0 +1,41 @@
+# systemd unit for the jobspy-service sidecar.
+#
+# Install path: /etc/systemd/system/jobspy.service
+# Logs:         sudo journalctl -u jobspy -f
+#
+# deploy/setup-jobspy.sh sets up the venv + installs this file.
+# Listens on 127.0.0.1:8002 — nginx doesn't proxy here; only the
+# career-ops-web Express process talks to it on the loopback.
+
+[Unit]
+Description=jobspy-service (FastAPI sidecar wrapping python-jobspy)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=careerops
+Group=careerops
+WorkingDirectory=/opt/jobspy-service
+
+# Bind to localhost only — this service is not for public traffic.
+ExecStart=/opt/jobspy-service/venv/bin/python -m uvicorn main:app \
+    --host 127.0.0.1 --port 8002 --proxy-headers
+
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+
+NoNewPrivileges=true
+ProtectSystem=full
+# read-only so the service can read its own venv inside /opt and the
+# careerops user's home cache, without being able to write to /home.
+ProtectHome=read-only
+PrivateTmp=false
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jobspy
+
+[Install]
+WantedBy=multi-user.target

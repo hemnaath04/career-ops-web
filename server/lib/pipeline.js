@@ -19,6 +19,7 @@ import { fetchByProvider } from "./ats/index.js";
 import { searchLinkedIn, searchGoogleJobs } from "./search/apify.js";
 import { searchTheirStack } from "./search/theirstack.js";
 import { searchBluedoor }   from "./search/bluedoor.js";
+import { searchJobSpy }     from "./search/jobspy.js";
 
 import { scoreMany } from "./scorer.js";
 
@@ -91,6 +92,19 @@ async function fetchAllSources(intent, location) {
     tasks.push(searchBluedoor    ({ query: q, location })
       .then((r) => { if (r.error) console.warn(`[pipeline] bluedoor error: ${r.error}`); return { source: "bluedoor",     jobs: r.jobs || [], error: r.error }; })
       .catch((e) => { console.warn(`[pipeline] bluedoor threw: ${e.message}`);          return { source: "bluedoor",    error: e.message,    jobs: [] }; }));
+  }
+
+  // JobSpy (Python sidecar on localhost:8002). Off by default — set
+  // ENABLE_JOBSPY=1 in .env after running deploy/setup-jobspy.sh.
+  // JobSpy hits LinkedIn/Indeed/Glassdoor/Google internally, so we
+  // only need ONE call per submission (uses the first search query).
+  if (/^(1|true|yes)$/i.test(process.env.ENABLE_JOBSPY || "")) {
+    const q = queries[0];
+    if (q) {
+      tasks.push(searchJobSpy({ query: q, location })
+        .then((r) => { if (r.error) console.warn(`[pipeline] jobspy error: ${r.error}`); return { source: "jobspy", jobs: r.jobs || [], error: r.error }; })
+        .catch((e) => { console.warn(`[pipeline] jobspy threw: ${e.message}`);          return { source: "jobspy", error: e.message,   jobs: [] }; }));
+    }
   }
 
   return Promise.all(tasks);
@@ -177,12 +191,18 @@ export async function runPipeline({
   const allJobs = [];
   const stats   = {};
   for (const r of sourceResults) {
-    const key = r.source;
-    stats[key] = stats[key] || { fetched: 0, errors: 0 };
-    if (r.error) stats[key].errors++;
+    const taskKey = r.source;
+    stats[taskKey] = stats[taskKey] || { fetched: 0, errors: 0 };
+    if (r.error) stats[taskKey].errors++;
     for (const j of (r.jobs || [])) {
-      stats[key].fetched++;
-      allJobs.push({ ...j, source: key });
+      // Per-job source overrides the task-level source. JobSpy returns
+      // jobs from multiple sites (linkedin/indeed/glassdoor/...) under
+      // one task; tagging each job with its actual site gives the UI
+      // accurate source chips.
+      const jobSource = j.source || taskKey;
+      stats[jobSource] = stats[jobSource] || { fetched: 0, errors: 0 };
+      stats[jobSource].fetched++;
+      allJobs.push({ ...j, source: jobSource });
     }
   }
   const fetched = allJobs.length;
