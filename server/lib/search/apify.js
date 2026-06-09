@@ -15,7 +15,11 @@ const PER_QUERY_LIMIT = parseInt(process.env.APIFY_PER_QUERY_LIMIT || "25", 10);
 function token() { return (process.env.APIFY_TOKEN || "").trim(); }
 
 async function runActorSync(actorId, input) {
-  const url = `${BASE}/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(token())}`;
+  const tok = token();
+  if (!tok) throw new Error("apify: APIFY_TOKEN env var is empty or missing");
+
+  const url = `${BASE}/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(tok)}`;
+  console.warn(`[apify] starting actor ${actorId} input.keys=${Object.keys(input).join(",")}`);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -25,8 +29,14 @@ async function runActorSync(actorId, input) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
-    if (!r.ok) throw new Error(`apify ${actorId}: HTTP ${r.status}`);
+    if (!r.ok) {
+      let body = "";
+      try { body = (await r.text()).slice(0, 400); } catch {}
+      throw new Error(`apify ${actorId}: HTTP ${r.status} ${body}`);
+    }
     const data = await r.json();
+    const n = Array.isArray(data) ? data.length : 0;
+    console.warn(`[apify] ${actorId} returned ${n} items`);
     return Array.isArray(data) ? data : [];
   } finally {
     clearTimeout(t);
@@ -39,7 +49,11 @@ function clean(text) {
 }
 
 export async function searchLinkedIn({ query, location }) {
-  if (!token()) return { provider: "linkedin", error: "APIFY_TOKEN not set", jobs: [] };
+  if (!token()) {
+    console.warn("[apify] LinkedIn skipped — APIFY_TOKEN empty/unset");
+    return { provider: "linkedin", error: "APIFY_TOKEN not set", jobs: [] };
+  }
+  console.warn(`[apify] LinkedIn query=${JSON.stringify(query)} location=${JSON.stringify(location || "United States")}`);
   const items = await runActorSync(LINKEDIN_ACTOR, {
     keywords:     query,
     location:     location || "United States",
@@ -61,7 +75,11 @@ export async function searchLinkedIn({ query, location }) {
 }
 
 export async function searchGoogleJobs({ query, location }) {
-  if (!token()) return { provider: "google_jobs", error: "APIFY_TOKEN not set", jobs: [] };
+  if (!token()) {
+    console.warn("[apify] Google Jobs skipped — APIFY_TOKEN empty/unset");
+    return { provider: "google_jobs", error: "APIFY_TOKEN not set", jobs: [] };
+  }
+  console.warn(`[apify] Google Jobs query=${JSON.stringify(query)} location=${JSON.stringify(location || "")}`);
   const q = location ? `${query} in ${location}` : query;
   const items = await runActorSync(GOOGLE_ACTOR, {
     queries:           [q],

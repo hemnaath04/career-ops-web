@@ -53,23 +53,29 @@ async function fetchAllSources(intent, location) {
   }
 
   // Search-API fan-out (one task per query × per provider)
+  const tokSet = !!process.env.APIFY_TOKEN;
+  const tsSet  = !!process.env.THEIRSTACK_API_KEY;
+  console.warn(`[pipeline] Apify token set: ${tokSet}, TheirStack key set: ${tsSet}, search queries: ${queries.length}`);
+
   for (const q of queries) {
-    if (process.env.APIFY_TOKEN) {
+    if (tokSet) {
       tasks.push(searchLinkedIn   ({ query: q, location })
-        .then((r) => ({ source: "linkedin",    jobs: r.jobs || [], error: r.error }))
-        .catch((e) => ({ source: "linkedin",   error: e.message,   jobs: [] })));
+        .then((r) => { if (r.error) console.warn(`[pipeline] linkedin error: ${r.error}`);    return { source: "linkedin",    jobs: r.jobs || [], error: r.error }; })
+        .catch((e) => { console.warn(`[pipeline] linkedin threw: ${e.message}`);             return { source: "linkedin",    error: e.message,   jobs: [] }; }));
       tasks.push(searchGoogleJobs ({ query: q, location })
-        .then((r) => ({ source: "google_jobs", jobs: r.jobs || [], error: r.error }))
-        .catch((e) => ({ source: "google_jobs", error: e.message,  jobs: [] })));
+        .then((r) => { if (r.error) console.warn(`[pipeline] google_jobs error: ${r.error}`); return { source: "google_jobs", jobs: r.jobs || [], error: r.error }; })
+        .catch((e) => { console.warn(`[pipeline] google_jobs threw: ${e.message}`);          return { source: "google_jobs", error: e.message,  jobs: [] }; }));
+    } else {
+      console.warn("[pipeline] skipping LinkedIn + Google Jobs — APIFY_TOKEN not in env");
     }
-    if (process.env.THEIRSTACK_API_KEY) {
+    if (tsSet) {
       tasks.push(searchTheirStack({ query: q })
-        .then((r) => ({ source: "theirstack",  jobs: r.jobs || [], error: r.error }))
-        .catch((e) => ({ source: "theirstack", error: e.message,   jobs: [] })));
+        .then((r) => { if (r.error) console.warn(`[pipeline] theirstack error: ${r.error}`); return { source: "theirstack",  jobs: r.jobs || [], error: r.error }; })
+        .catch((e) => { console.warn(`[pipeline] theirstack threw: ${e.message}`);          return { source: "theirstack", error: e.message,   jobs: [] }; }));
     }
     tasks.push(searchBluedoor    ({ query: q, location })
-      .then((r) => ({ source: "bluedoor",     jobs: r.jobs || [], error: r.error }))
-      .catch((e) => ({ source: "bluedoor",    error: e.message,    jobs: [] })));
+      .then((r) => { if (r.error) console.warn(`[pipeline] bluedoor error: ${r.error}`); return { source: "bluedoor",     jobs: r.jobs || [], error: r.error }; })
+      .catch((e) => { console.warn(`[pipeline] bluedoor threw: ${e.message}`);          return { source: "bluedoor",    error: e.message,    jobs: [] }; }));
   }
 
   return Promise.all(tasks);
