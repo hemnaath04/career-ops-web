@@ -32,7 +32,17 @@ async function runActorSync(actorId, input) {
     if (!r.ok) {
       let body = "";
       try { body = (await r.text()).slice(0, 400); } catch {}
-      throw new Error(`apify ${actorId}: HTTP ${r.status} ${body}`);
+      // Friendly translation for the two common failure modes.
+      if (r.status === 403 && /rent|paid|trial/i.test(body)) {
+        throw new Error(`Apify actor "${actorId}" is paid (free trial expired). ` +
+          `Either rent it on console.apify.com, or set APIFY_LINKEDIN_ACTOR / ` +
+          `APIFY_GOOGLE_ACTOR in .env to a free alternative.`);
+      }
+      if (r.status === 404) {
+        throw new Error(`Apify actor "${actorId}" not found. The actor ID ` +
+          `may have changed. Browse console.apify.com/store and pick a current one.`);
+      }
+      throw new Error(`apify ${actorId}: HTTP ${r.status} ${body.replace(/\s+/g, " ").slice(0, 200)}`);
     }
     const data = await r.json();
     const n = Array.isArray(data) ? data.length : 0;
