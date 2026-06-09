@@ -106,7 +106,10 @@ export async function scoreJob({ job, resumeText, intent }) {
 // Concurrent scoring. Caps in-flight requests so we don't drown the
 // proxy. The cache_control on the system message means jobs 2-N
 // essentially pay for output only.
-export async function scoreMany(jobs, ctx, { concurrency = 8 } = {}) {
+//
+// `onResult(scoredJob, index)` fires every time a worker finishes one,
+// useful for streaming the score back to the frontend as it lands.
+export async function scoreMany(jobs, ctx, { concurrency = 8, onResult } = {}) {
   const out = new Array(jobs.length);
   let next = 0;
 
@@ -114,7 +117,12 @@ export async function scoreMany(jobs, ctx, { concurrency = 8 } = {}) {
     while (true) {
       const i = next++;
       if (i >= jobs.length) return;
-      out[i] = await scoreJob({ ...ctx, job: jobs[i] });
+      const result = await scoreJob({ ...ctx, job: jobs[i] });
+      out[i] = result;
+      if (onResult) {
+        try { onResult({ ...jobs[i], ...result }, i); }
+        catch (e) { console.warn("onResult callback threw:", e?.message || e); }
+      }
     }
   }
 

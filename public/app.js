@@ -1,30 +1,29 @@
-// career-ops-web v1.0 — single unified flow.
+// career-ops-web v1.2 — streaming.
 //
-//   1. User types role + location, picks/pastes resume, submits.
-//   2. We POST multipart to /api/find which kicks off the pipeline
-//      (intent → fan-out → filter → score → top N).
-//   3. Server returns JSON when done (no streaming yet — 30-90s wait).
-//   4. We render ranked cards with score, rationale, hits, gaps.
+// /api/find now streams NDJSON. We render each scored job as it lands
+// (even score=0 ones), then on `done` we rank top-N and dim the rest.
 
 const $ = (id) => document.getElementById(id);
 
-// Cached resume text after the first /api/find submission. The /api/pdf
-// endpoint needs it again per "tailor CV" click, but we don't want to
-// re-upload the file each time. We let the server parse the file at submit
-// time and reflect the parsed text back via the response, or we just keep
-// the user's pasted markdown.
 let _lastResumeText = "";
 
-// === resume preview (optional — show byte count after pick) ============
+// In-memory state of jobs we've seen, keyed by dedupe key.
+const _seen = new Map();   // key → { domNode, job }
+let _scoredCount = 0;
+let _totalToScore = 0;
+let _scoringStart = 0;
+
+
+// === resume picker preview ============================================
 $("resume_file").addEventListener("change", (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const kb = (f.size / 1024).toFixed(1);
-  $("resume_status").textContent = `${f.name} (${kb} KB) — will be parsed when you submit`;
+  $("resume_status").textContent = `${f.name} (${kb} KB) — parsed at submit`;
 });
 
 
-// === main submit =======================================================
+// === main submit ======================================================
 $("find").addEventListener("submit", async (e) => {
   e.preventDefault();
   const query    = $("query").value.trim();
@@ -35,34 +34,24 @@ $("find").addEventListener("submit", async (e) => {
   if (!query)             return showError("type the role you want first.");
   if (!file && !pasted)   return showError("upload your resume (or paste markdown).");
 
-  clearResults();
+  resetState();
   setRunning(true);
 
-  // Build multipart form-data. If they uploaded a file, send that;
-  // otherwise send the pasted markdown.
   const fd = new FormData();
   fd.append("query", query);
   if (location) fd.append("location", location);
   if (file)     fd.append("resume",      file);
   else          fd.append("resume_text", pasted);
 
-  // Fake progress phases. The endpoint is one synchronous call but the
-  // pipeline does intent → fetching → filtering → scoring so we cycle
-  // through hints to make it feel responsive.
-  cyclePhases();
-
   try {
     const r = await fetch("/api/find", { method: "POST", body: fd });
-    const data = await r.json().catch(() => ({}));
-    stopPhases();
-    if (!r.ok || !data.ok) {
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
       showError(data?.error || `request failed (${r.status})`);
       return;
     }
-    _lastResumeText = data.resume_text || pasted || "";
-    renderResults(data);
+    await streamEvents(r);
   } catch (err) {
-    stopPhases();
     showError(`network error: ${err?.message || err}`);
   } finally {
     setRunning(false);
@@ -70,87 +59,173 @@ $("find").addEventListener("submit", async (e) => {
 });
 
 
-// === phase cycler =====================================================
-let phaseTimer = null;
-function cyclePhases() {
-  const phases = [
-    { text: "reading what you want…",              ms: 2500 },
-    { text: "fanning out across job boards…",      ms: 6000 },
-    { text: "scoring each posting against you…",   ms: 14000 },
-    { text: "still ranking — long tail of providers…", ms: 30000 },
-  ];
+async function streamEvents(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();    // last (possibly partial) line stays in buffer
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        handleEvent(JSON.parse(line));
+      } catch (e) {
+        console.warn("bad event line", line.slice(0, 200), e);
+      }
+    }
+  }
+}
+
+
+function handleEvent(e) {
+  switch (e.type) {
+    case "phase":
+      setPhase(e.stage);
+      break;
+    case "intent":
+      // Note the extracted search queries in the phase row.
+      setPhase("fetching", `intent: ${e.intent.search_queries?.join(" · ") || "(none)"}`);
+      break;
+    case "stats":
+      setPhase("filtering", `fetched ${e.fetched} jobs from ${Object.keys(e.stats).length} sources`);
+      renderSourceChips(e.stats);
+      break;
+    case "scoring_start":
+      _totalToScore = e.total;
+      _scoringStart = Date.now();
+      setPhase("scoring", `0 / ${e.total} scored…`);
+      ensureResultsHeader();
+      break;
+    case "scored":
+      _scoredCount++;
+      addOrUpdateJob(e.job);
+      updateScoringProgress();
+      break;
+    case "resume":
+      _lastResumeText = e.resume_text || "";
+      break;
+    case "heartbeat":
+      // proxy keep-alive only, ignore in UI
+      break;
+    case "error":
+      showError(e.error);
+      break;
+    case "done":
+      finalize(e);
+      break;
+    default:
+      // unknown event types: log + ignore
+      console.log("event", e);
+  }
+}
+
+
+// === phase indicator =================================================
+function setPhase(stage, detail) {
+  const labels = {
+    intent:     "reading what you want…",
+    fetching:   "fanning out across job boards…",
+    filtering:  "filtering candidates…",
+    scoring:    "scoring against your resume…",
+  };
   const el = $("phase");
   el.style.display = "block";
-  let i = 0;
-  function next() {
-    if (i >= phases.length) { i = phases.length - 1; }
-    el.textContent = phases[i].text;
-    const d = phases[i].ms;
-    i++;
-    phaseTimer = setTimeout(next, d);
-  }
-  next();
+  el.textContent = (labels[stage] || stage) + (detail ? ` — ${detail}` : "");
 }
-function stopPhases() {
-  if (phaseTimer) { clearTimeout(phaseTimer); phaseTimer = null; }
-  $("phase").style.display = "none";
+
+function updateScoringProgress() {
+  const el = $("phase");
+  const dt = Math.round((Date.now() - _scoringStart) / 1000);
+  el.textContent = `scoring against your resume… ${_scoredCount} / ${_totalToScore}  ·  ${dt}s elapsed`;
 }
 
 
-// === render results ===================================================
-function renderResults(data) {
-  const root = $("results");
-  if (!data.jobs?.length) {
-    root.innerHTML = `
-      <div class="paper-card" style="margin-top:1.5rem">
-        <p class="caveat" style="font-size:1.5rem">nothing rated highly today.</p>
-        <p class="muted">
-          ${data.fetched} jobs found across ${Object.keys(data.stats || {}).length}
-          sources; ${data.candidates} survived the keyword filter; ${data.scored}
-          got scored. None passed the bar. Tweak your role description or
-          location and try again.
-        </p>
-        <details style="margin-top:0.6rem">
-          <summary class="muted small">debug — what intent.parse extracted</summary>
-          <pre>${escapeHtml(JSON.stringify(data.intent, null, 2))}</pre>
-        </details>
-      </div>`;
-    return;
-  }
-
-  const sourceStats = Object.entries(data.stats || {})
+// === source chips above results =======================================
+function renderSourceChips(stats) {
+  ensureResultsHeader();
+  const meta = document.querySelector(".chip-row");
+  if (!meta) return;
+  const chips = Object.entries(stats)
     .filter(([, v]) => v.fetched > 0)
     .sort((a, b) => b[1].fetched - a[1].fetched)
     .map(([k, v]) => `<span class="chip" data-source="${k}">${k} · ${v.fetched}</span>`)
     .join("");
-
-  const cards = data.jobs.map((j, idx) => renderJob(j, idx + 1)).join("");
-
-  root.innerHTML = `
-    <div class="results-meta">
-      <p class="caveat big">${data.jobs.length} matches for you.</p>
-      <p class="muted small">
-        scanned ${data.fetched} jobs from ${Object.keys(data.stats).length} sources,
-        scored top ${data.scored}, kept top ${data.jobs.length} ·
-        ${Math.round(data.elapsed_ms / 1000)}s
-      </p>
-      <div class="chip-row">${sourceStats}</div>
-    </div>
-    <div class="job-grid">${cards}</div>
-  `;
-
-  // wire "save to tracker" buttons
-  root.querySelectorAll("[data-track]").forEach((b) =>
-    b.addEventListener("click", () => saveToTracker(JSON.parse(b.dataset.track))));
-
-  // wire "tailor CV" buttons
-  root.querySelectorAll("[data-tailor]").forEach((b) =>
-    b.addEventListener("click", (e) => tailorCv(JSON.parse(b.dataset.tailor), b)));
+  meta.innerHTML = chips;
 }
 
 
-function renderJob(j, rank) {
-  const scoreCls = j.score >= 8 ? "score-great" : j.score >= 6 ? "score-good" : "score-meh";
+function ensureResultsHeader() {
+  if (document.querySelector(".results-meta")) return;
+  $("results").insertAdjacentHTML("beforeend", `
+    <div class="results-meta">
+      <p class="caveat big" id="meta_title">live ranking…</p>
+      <p class="muted small" id="meta_sub">streaming jobs as they're scored</p>
+      <div class="chip-row"></div>
+    </div>
+    <div class="job-grid" id="job_grid"></div>
+  `);
+}
+
+
+// === per-job render + live re-sort ===================================
+function jobKey(j) {
+  if (j.url) return j.url.split("?")[0];
+  return `${(j.company || "").toLowerCase()}|${(j.title || "").toLowerCase()}`;
+}
+
+function addOrUpdateJob(j) {
+  ensureResultsHeader();
+  const grid = $("job_grid");
+  const k = jobKey(j);
+
+  let entry = _seen.get(k);
+  if (entry) {
+    // already in DOM — refresh the card
+    entry.job = j;
+    const next = renderJobCard(j, null);
+    entry.domNode.outerHTML = next;
+    // re-grab the new node
+    const all = grid.querySelectorAll(".job-card");
+    for (const n of all) {
+      if (n.dataset.key === k) { entry.domNode = n; break; }
+    }
+  } else {
+    const html = renderJobCard(j, null);
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    const node = tmp.firstElementChild;
+    node.dataset.key = k;
+    grid.appendChild(node);
+    _seen.set(k, { job: j, domNode: node });
+  }
+
+  // Re-sort by score, descending. CSS order trick: just reorder DOM.
+  resortByScore();
+  wireCardButtons();
+}
+
+
+function resortByScore() {
+  const grid = $("job_grid");
+  if (!grid) return;
+  const cards = [..._seen.values()]
+    .sort((a, b) => (b.job.score || 0) - (a.job.score || 0));
+  // Re-rank labels
+  cards.forEach((entry, i) => {
+    const rankEl = entry.domNode.querySelector(".rank");
+    if (rankEl) rankEl.textContent = `#${i + 1}`;
+  });
+  // Append in new order — appendChild moves existing nodes.
+  for (const { domNode } of cards) grid.appendChild(domNode);
+}
+
+
+function renderJobCard(j, rank) {
+  const scoreCls = j.score >= 8 ? "score-great" : j.score >= 6 ? "score-good" : j.score >= 1 ? "score-meh" : "score-zero";
   const hits = (j.hits || []).slice(0, 3).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
   const gaps = (j.gaps || []).slice(0, 3).map((g) => `<li>${escapeHtml(g)}</li>`).join("");
   const trackPayload = JSON.stringify({
@@ -162,12 +237,22 @@ function renderJob(j, rank) {
     notes:    j.rationale || "",
     status:   "to-apply",
   });
+  const tailorPayload = JSON.stringify({
+    title:       j.title || "",
+    company:     j.company || "",
+    location:    j.location || "",
+    url:         j.url || "",
+    source:      j.source || "",
+    description: j.description || "",
+    hits:        j.hits || [],
+    gaps:        j.gaps || [],
+  });
 
   return `
     <article class="job-card">
       <header>
-        <span class="rank">#${rank}</span>
-        <span class="score ${scoreCls}">${j.score}<small>/10</small></span>
+        <span class="rank">${rank != null ? `#${rank}` : ""}</span>
+        <span class="score ${scoreCls}">${j.score ?? 0}<small>/10</small></span>
         <div class="job-title-block">
           <strong>${escapeHtml(j.title || "(untitled)")}</strong>
           <p class="muted small">
@@ -189,16 +274,7 @@ function renderJob(j, rank) {
       <footer class="job-actions">
         ${j.url ? `<a class="action" href="${escapeAttr(j.url)}" target="_blank" rel="noopener">open posting ↗</a>` : ""}
         <button class="action ghost" data-track='${escapeAttr(trackPayload)}'>+ tracker</button>
-        <button class="action ghost" data-tailor='${escapeAttr(JSON.stringify({
-          title:       j.title || "",
-          company:     j.company || "",
-          location:    j.location || "",
-          url:         j.url || "",
-          source:      j.source || "",
-          description: j.description || "",
-          hits:        j.hits || [],
-          gaps:        j.gaps || [],
-        }))}'>✦ tailor cv</button>
+        <button class="action ghost" data-tailor='${escapeAttr(tailorPayload)}'>✦ tailor cv</button>
         <span class="cv-result"></span>
       </footer>
     </article>
@@ -206,7 +282,46 @@ function renderJob(j, rank) {
 }
 
 
-// === tailor CV (uses /api/pdf/generate) ===============================
+function wireCardButtons() {
+  // Idempotent — re-runs on every re-sort.
+  document.querySelectorAll("[data-track]").forEach((b) => {
+    if (b._wired) return;
+    b._wired = true;
+    b.addEventListener("click", () => saveToTracker(JSON.parse(b.dataset.track)));
+  });
+  document.querySelectorAll("[data-tailor]").forEach((b) => {
+    if (b._wired) return;
+    b._wired = true;
+    b.addEventListener("click", () => tailorCv(JSON.parse(b.dataset.tailor), b));
+  });
+}
+
+
+// === final done event =================================================
+function finalize(e) {
+  $("phase").style.display = "none";
+
+  const total = _seen.size;
+  const kept  = e.kept ?? 0;
+  const elapsed = Math.round((e.elapsed_ms || 0) / 1000);
+
+  // Cards below the top_n cutoff get dimmed but stay visible (user
+  // explicitly asked to see 0/10 too).
+  const cutoffIdx = e.top_n || 50;
+  let idx = 0;
+  for (const card of document.querySelectorAll(".job-card")) {
+    if (idx >= cutoffIdx) card.classList.add("below-cutoff");
+    idx++;
+  }
+
+  document.getElementById("meta_title").textContent =
+    `${kept} ranked match${kept === 1 ? "" : "es"} · ${total - kept} below the cut`;
+  document.getElementById("meta_sub").textContent =
+    `${total} jobs scored in ${elapsed}s · sources fanned out in parallel`;
+}
+
+
+// === tailored CV =====================================================
 async function tailorCv(job, btn) {
   if (!_lastResumeText) {
     alert("can't tailor — resume text wasn't cached. re-submit the form once.");
@@ -229,7 +344,6 @@ async function tailorCv(job, btn) {
       slot.innerHTML = `<span style="color:var(--marker)">failed: ${escapeHtml(data?.error || r.status)}</span>`;
       return;
     }
-    // Replace tailor button with two links: view + download
     btn.style.display = "none";
     slot.innerHTML = `
       <a class="action" href="${escapeAttr(data.view_url)}" target="_blank" rel="noopener">view tailored cv ↗</a>
@@ -244,7 +358,7 @@ async function tailorCv(job, btn) {
 }
 
 
-// === tracker save (uses existing /api/tracker) =========================
+// === tracker save =====================================================
 async function saveToTracker(payload) {
   try {
     const r = await fetch("/api/tracker", {
@@ -264,10 +378,13 @@ async function saveToTracker(payload) {
 }
 
 
-// === helpers ==========================================================
-function clearResults() {
+// === helpers =========================================================
+function resetState() {
   $("results").innerHTML = "";
   $("error").style.display = "none";
+  _seen.clear();
+  _scoredCount = 0;
+  _totalToScore = 0;
 }
 function setRunning(on) {
   $("run").disabled = on;

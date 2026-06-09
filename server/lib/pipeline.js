@@ -23,9 +23,12 @@ import { searchBluedoor }   from "./search/bluedoor.js";
 import { scoreMany } from "./scorer.js";
 
 
-const MAX_JOBS_TO_SCORE = parseInt(process.env.MAX_JOBS_TO_SCORE || "30", 10);
-const DEFAULT_TOP_N    = parseInt(process.env.TOP_N || "20", 10);
-const SCORE_CONCURRENCY = parseInt(process.env.SCORE_CONCURRENCY || "8", 10);
+// Score everything (within reason) by default — slow is fine, the
+// frontend now streams results as they land. Set MAX_JOBS_TO_SCORE
+// in .env to cap if your proxy starts throttling.
+const MAX_JOBS_TO_SCORE = parseInt(process.env.MAX_JOBS_TO_SCORE || "500", 10);
+const DEFAULT_TOP_N     = parseInt(process.env.TOP_N || "50", 10);
+const SCORE_CONCURRENCY = parseInt(process.env.SCORE_CONCURRENCY || "16", 10);
 
 
 // ---------- fan-out ----------
@@ -126,15 +129,30 @@ function rankByKeywordHits(jobs, role) {
 
 // ---------- main entry point ----------
 
-export async function runPipeline({ query, location, resumeText, topN = DEFAULT_TOP_N, onProgress }) {
+// onEvent is the streaming hook. Events emitted (in order):
+//   { type: "phase", stage }
+//   { type: "intent", intent }
+//   { type: "stats", stats, fetched }
+//   { type: "scoring_start", total: <#candidates> }
+//   { type: "scored", job }                 (one per scored job, including 0/10)
+//   { type: "done", elapsed_ms, kept: <topN> }
+// runPipeline ALSO returns the final ranked top-N at the end so non-
+// streaming callers still work.
+export async function runPipeline({
+  query, location, resumeText,
+  topN = DEFAULT_TOP_N,
+  onEvent,
+}) {
   const t0 = Date.now();
-  onProgress?.({ stage: "intent" });
-  const intent = await parseIntent(query);
+  const emit = (e) => { try { onEvent?.(e); } catch (err) { console.warn("onEvent threw:", err); } };
 
-  onProgress?.({ stage: "fetching", intent });
+  emit({ type: "phase", stage: "intent" });
+  const intent = await parseIntent(query);
+  emit({ type: "intent", intent });
+
+  emit({ type: "phase", stage: "fetching" });
   const sourceResults = await fetchAllSources(intent, location);
 
-  // Roll up the raw fan-out into a single jobs list + per-source stats.
   const allJobs = [];
   const stats   = {};
   for (const r of sourceResults) {
@@ -147,37 +165,41 @@ export async function runPipeline({ query, location, resumeText, topN = DEFAULT_
     }
   }
   const fetched = allJobs.length;
+  emit({ type: "stats", stats, fetched });
 
-  onProgress?.({ stage: "filtering", fetched });
-
+  emit({ type: "phase", stage: "filtering" });
   let candidates = allJobs.filter((j) =>
     passesKeyword(j.title, intent.role_keywords, intent.negative_keywords) &&
     passesLocation(j.location, intent.location_keywords)
   );
   candidates = dedupe(candidates);
-
-  // Rank by keyword-hit count so the cap keeps the most-relevant ones.
+  // Most-relevant first so the cap (if any) keeps the strongest matches.
   candidates = rankByKeywordHits(candidates, intent.role_keywords).slice(0, MAX_JOBS_TO_SCORE);
 
-  onProgress?.({ stage: "scoring", candidates: candidates.length });
+  emit({ type: "scoring_start", total: candidates.length });
 
   const scored = candidates.length === 0 ? [] : await scoreMany(
     candidates,
     { resumeText, intent },
-    { concurrency: SCORE_CONCURRENCY },
+    {
+      concurrency: SCORE_CONCURRENCY,
+      onResult: (scoredJob) => emit({ type: "scored", job: scoredJob }),
+    },
   );
 
-  // Merge the score result back onto each job.
   const ranked = candidates
     .map((j, i) => ({ ...j, ...scored[i] }))
     .filter((j) => j.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
 
-  onProgress?.({ stage: "done" });
+  const elapsed = Date.now() - t0;
+  // No "done" event from here — the route layer emits a single final
+  // "done" with the ranked list attached, so streaming consumers don't
+  // get two done events.
 
   return {
-    elapsed_ms: Date.now() - t0,
+    elapsed_ms: elapsed,
     intent,
     stats,
     fetched,

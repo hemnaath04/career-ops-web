@@ -1,16 +1,18 @@
-// POST /api/find — the unified pipeline.
+// POST /api/find — streaming NDJSON.
 //
 // Body (multipart/form-data):
-//   query        — what role you want, free text
-//   location     — optional, "United States" / "Boston, MA" / "Remote"
-//   resume       — file upload (PDF/HTML/MD/TXT, ≤5MB), OR
-//   resume_text  — plain-text resume (if user pasted markdown instead)
+//   query        what role you want, free text
+//   location     optional location filter
+//   resume       file upload (PDF/HTML/MD/TXT, ≤5MB), OR
+//   resume_text  plain-text resume
+//   top_n        optional, default 50
 //
-// Returns JSON: { ok, intent, stats, jobs: [...top N], elapsed_ms }
-//
-// Long-running (30s-2min depending on how many providers respond),
-// so the frontend shows a loading state with the rough phase the
-// pipeline is in.
+// Response: Content-Type: application/x-ndjson, one JSON object per line.
+//   {type:"intent", intent}
+//   {type:"stats",  stats, fetched}
+//   {type:"scoring_start", total}
+//   {type:"scored", job}                       (one per scored job)
+//   {type:"done",   elapsed_ms, kept, top_n, jobs}   ← final ranked top-N
 
 import express from "express";
 import multer  from "multer";
@@ -32,18 +34,18 @@ router.post("/", upload.single("resume"), async (req, res) => {
   const query    = String(req.body.query    || "").trim();
   const location = String(req.body.location || "").trim();
   let   resumeText = String(req.body.resume_text || "").trim();
+  const topN     = parseInt(req.body.top_n || "50", 10);
 
   if (!query) {
     return res.status(400).json({ ok: false, error: "what role are you looking for?" });
   }
 
-  // If a file came in, parse it. Otherwise we need resume_text.
   if (req.file) {
     const ext = extensionFromFilename(req.file.originalname || "");
     if (!isAllowedExt(ext)) {
       return res.status(400).json({
         ok: false,
-        error: `unsupported resume type ${ext} — must be one of ${ALLOWED_EXT_LIST.join(", ")}`,
+        error: `unsupported resume type ${ext} — must be ${ALLOWED_EXT_LIST.join(", ")}`,
       });
     }
     if (!looksLegit(ext, req.file.buffer)) {
@@ -60,19 +62,36 @@ router.post("/", upload.single("resume"), async (req, res) => {
     return res.status(400).json({ ok: false, error: "upload your resume or paste it as markdown" });
   }
 
+  // Stream NDJSON. nginx must have proxy_buffering off (or a long-enough
+  // timeout) to forward each chunk as it lands.
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");        // tells nginx: don't buffer
+
+  const write = (event) => {
+    if (res.writableEnded) return;
+    res.write(JSON.stringify(event) + "\n");
+  };
+
+  // Heartbeat — keeps proxies awake during long scoring loops.
+  const heartbeat = setInterval(() => write({ type: "heartbeat", t: Date.now() }), 15_000);
+
+  // Reflect parsed resume text so the frontend can use it later for
+  // per-job CV tailoring without re-uploading.
+  write({ type: "resume", resume_text: resumeText });
+
   try {
     const result = await runPipeline({
-      query,
-      location,
-      resumeText,
-      topN: parseInt(req.body.top_n || "20", 10),
+      query, location, resumeText, topN,
+      onEvent: write,
     });
-    // Reflect the parsed resume text back so the frontend can hand it to
-    // /api/pdf/generate per "tailor CV" click without re-uploading.
-    res.json({ ok: true, ...result, resume_text: resumeText });
+    write({ ...{ type: "done" }, jobs: result.jobs, elapsed_ms: result.elapsed_ms, kept: result.jobs.length, top_n: topN });
   } catch (e) {
     console.error("pipeline failed:", e);
-    res.status(500).json({ ok: false, error: `pipeline error: ${e?.message || e}` });
+    write({ type: "error", error: `pipeline error: ${e?.message || e}` });
+  } finally {
+    clearInterval(heartbeat);
+    res.end();
   }
 });
 
