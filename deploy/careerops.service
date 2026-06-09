@@ -35,7 +35,11 @@ TimeoutStopSec=15
 
 NoNewPrivileges=true
 ProtectSystem=full
-ProtectHome=true
+# read-only (not true) so the service can read Chromium from
+# /home/careerops/.cache/ms-playwright. The PDF tailoring feature needs
+# to exec the Playwright-managed Chromium binary which lives there.
+# Writes to /home are still blocked.
+ProtectHome=read-only
 PrivateTmp=false
 
 StandardOutput=journal
