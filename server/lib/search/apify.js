@@ -18,8 +18,11 @@ async function runActorSync(actorId, input) {
   const tok = token();
   if (!tok) throw new Error("apify: APIFY_TOKEN env var is empty or missing");
 
-  const url = `${BASE}/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(tok)}`;
-  console.warn(`[apify] starting actor ${actorId} input.keys=${Object.keys(input).join(",")}`);
+  // Apify accepts `user~actor` and `user/actor` (URL-encoded). The slash form
+  // confuses our raw URL concatenation — normalize to tilde.
+  const normalized = actorId.replace(/\//g, "~");
+  const url = `${BASE}/acts/${normalized}/run-sync-get-dataset-items?token=${encodeURIComponent(tok)}`;
+  console.warn(`[apify] starting actor ${normalized} input.keys=${Object.keys(input).join(",")}`);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
